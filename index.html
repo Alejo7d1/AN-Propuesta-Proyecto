@@ -1,18 +1,56 @@
 <!DOCTYPE html>
 <html lang="es">
+
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <meta name="description" content="Sistema cooperativo de gestión de créditos ACEUCA — Plataforma de préstamos institucionales.">
+    <meta name="description"
+        content="Sistema cooperativo de gestión de créditos ACEUCA — Plataforma de préstamos institucionales.">
     <title>ACEUCA Loans — Sistema Cooperativo de Créditos</title>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
     <link rel="stylesheet" href="styles.css">
 </head>
+
 <body>
+
+    <!-- ===== PANTALLA DE LOGIN SIMULADO ===== -->
+    <div id="login-overlay" class="login-overlay active">
+        <div class="login-card">
+            <div class="login-logo">
+                <div class="logo-icon"><i class="fas fa-landmark"></i></div>
+                <div>
+                    <h1>ACEUCA Loans</h1>
+                    <span>Sistema Cooperativo de Créditos</span>
+                </div>
+            </div>
+
+            <form id="form-login" onsubmit="attemptLogin(event)">
+                <div class="form-group">
+                    <label for="login-username">Usuario</label>
+                    <input type="text" id="login-username" placeholder="ej. asociado1" autocomplete="username">
+                </div>
+                <div class="form-group">
+                    <label for="login-password">Contraseña</label>
+                    <input type="password" id="login-password" placeholder="••••••••" autocomplete="current-password">
+                </div>
+                <div id="login-error" class="alert alert-danger" style="display:none;"></div>
+                <button type="submit" class="btn btn-primary login-submit-btn">
+                    <i class="fas fa-right-to-bracket"></i> Iniciar Sesión
+                </button>
+            </form>
+
+            <div class="login-divider"><span>Acceso rápido (demo)</span></div>
+            <div id="login-quick-list" class="login-quick-list"></div>
+
+            <p class="login-footnote">Prototipo funcional — cualquier contraseña es válida para fines de demostración.
+            </p>
+        </div>
+    </div>
 
     <!-- ===== PROTO BAR: Conmutador de Roles (Entorno Sandbox) ===== -->
     <div class="proto-bar">
-        <div><i class="fas fa-flask" style="color:#6366f1;margin-right:6px;"></i> <strong>Simulador ACEUCA</strong> <span style="color:#475569;">/ Entorno de Control Interno</span></div>
+        <div><i class="fas fa-flask" style="color:#6366f1;margin-right:6px;"></i> <strong>Simulador ACEUCA</strong>
+            <span style="color:#475569;">/ Entorno de Control Interno</span></div>
         <div class="role-switcher">
             <span>Vista de Rol:</span>
             <button class="role-switcher-btn" data-role="Asociado" onclick="setRole('Asociado')">
@@ -42,18 +80,22 @@
 
         <div class="user-nav-profile">
             <!-- Botón de Notificaciones -->
-            <div class="notif-btn" id="notif-btn" onclick="toggleNotifPanel()" role="button" aria-label="Notificaciones" title="Notificaciones">
+            <div class="notif-btn" id="notif-btn" onclick="toggleNotifPanel()" role="button" aria-label="Notificaciones"
+                title="Notificaciones">
                 <i class="fas fa-bell"></i>
                 <div id="notif-badge" class="count">0</div>
             </div>
 
             <!-- Perfil del usuario activo -->
-            <div class="user-profile-chip">
+            <div class="user-profile-chip" onclick="logout()" role="button" title="Cerrar sesión"
+                style="cursor:pointer;">
                 <div class="user-avatar" id="avatar-box">--</div>
                 <div class="user-info">
                     <div class="user-name">Cargando...</div>
                     <div class="user-role">...</div>
                 </div>
+                <i class="fas fa-arrow-right-from-bracket" style="font-size:11px;opacity:0.6;margin-left:2px;"
+                    title="Cerrar sesión"></i>
             </div>
         </div>
     </header>
@@ -84,42 +126,52 @@
             <div class="sidebar-divider"></div>
 
             <!-- Asociado -->
-            <a class="nav-link role-scoped role-asociado" data-view="loan-apply" id="nav-loan-apply" onclick="navigateTo('loan-apply')">
+            <a class="nav-link role-scoped role-asociado" data-view="loan-apply" id="nav-loan-apply"
+                onclick="navigateTo('loan-apply')">
                 <i class="fas fa-file-invoice"></i> <span>Solicitar Crédito</span>
             </a>
-            <a class="nav-link role-scoped role-asociado" data-view="payments-asociado" id="nav-payments-asociado" onclick="navigateTo('payments-asociado')">
+            <a class="nav-link role-scoped role-asociado" data-view="payments-asociado" id="nav-payments-asociado"
+                onclick="navigateTo('payments-asociado')">
                 <i class="fas fa-wallet"></i> <span>Pasarela de Pagos</span>
             </a>
-            <a class="nav-link role-scoped role-asociado" data-view="reports" id="nav-reports-asociado" onclick="navigateTo('reports')">
+            <a class="nav-link role-scoped role-asociado" data-view="reports" id="nav-reports-asociado"
+                onclick="navigateTo('reports')">
                 <i class="fas fa-chart-bar"></i> <span>Mis Reportes</span>
             </a>
 
             <!-- Contador -->
-            <a class="nav-link role-scoped role-contador" data-view="evaluate-loans" id="nav-evaluate-loans" onclick="navigateTo('evaluate-loans')">
+            <a class="nav-link role-scoped role-contador" data-view="evaluate-loans" id="nav-evaluate-loans"
+                onclick="navigateTo('evaluate-loans')">
                 <i class="fas fa-check-double"></i> <span>Evaluar Créditos</span>
             </a>
-            <a class="nav-link role-scoped role-contador" data-view="payments-admin" id="nav-payments-admin" onclick="navigateTo('payments-admin')">
+            <a class="nav-link role-scoped role-contador" data-view="payments-admin" id="nav-payments-admin"
+                onclick="navigateTo('payments-admin')">
                 <i class="fas fa-coins"></i> <span>Gestionar Pagos</span>
             </a>
-            <a class="nav-link role-scoped role-contador" data-view="reports" id="nav-reports-contador" onclick="navigateTo('reports')">
+            <a class="nav-link role-scoped role-contador" data-view="reports" id="nav-reports-contador"
+                onclick="navigateTo('reports')">
                 <i class="fas fa-chart-line"></i> <span>Reportes Financieros</span>
             </a>
 
             <!-- Consejo -->
-            <a class="nav-link role-scoped role-consejo" data-view="consejo-decisions" id="nav-consejo-decisions" onclick="navigateTo('consejo-decisions')">
+            <a class="nav-link role-scoped role-consejo" data-view="consejo-decisions" id="nav-consejo-decisions"
+                onclick="navigateTo('consejo-decisions')">
                 <i class="fas fa-gavel"></i> <span>Decisiones del Consejo</span>
             </a>
-            <a class="nav-link role-scoped role-consejo" data-view="reports" id="nav-reports-consejo" onclick="navigateTo('reports')">
+            <a class="nav-link role-scoped role-consejo" data-view="reports" id="nav-reports-consejo"
+                onclick="navigateTo('reports')">
                 <i class="fas fa-chart-line"></i> <span>Reportes Ejecutivos</span>
             </a>
 
             <div class="sidebar-divider"></div>
 
             <!-- Administrador -->
-            <a class="nav-link role-scoped role-administrador" data-view="users-admin" id="nav-users-admin" onclick="navigateTo('users-admin')">
+            <a class="nav-link role-scoped role-administrador" data-view="users-admin" id="nav-users-admin"
+                onclick="navigateTo('users-admin')">
                 <i class="fas fa-users-cog"></i> <span>Control de Usuarios</span>
             </a>
-            <a class="nav-link role-scoped role-administrador" data-view="audit-logs" id="nav-audit-logs" onclick="navigateTo('audit-logs')">
+            <a class="nav-link role-scoped role-administrador" data-view="audit-logs" id="nav-audit-logs"
+                onclick="navigateTo('audit-logs')">
                 <i class="fas fa-shield-alt"></i> <span>Bitácora Auditoría</span>
             </a>
 
@@ -136,7 +188,8 @@
                 <div class="page-header">
                     <div>
                         <h2>Nueva Solicitud de Crédito</h2>
-                        <p>Complete el formulario. El sistema validará automáticamente las condiciones de la línea de crédito seleccionada.</p>
+                        <p>Complete el formulario. El sistema validará automáticamente las condiciones de la línea de
+                            crédito seleccionada.</p>
                     </div>
                 </div>
 
@@ -182,11 +235,13 @@
                             <div id="docs-upload-section" style="display:none; margin-bottom:16px;">
                                 <div class="alert alert-info" style="margin-bottom:10px;">
                                     <i class="fas fa-info-circle"></i>
-                                    <span>Esta línea requiere documentación de respaldo. Adjunte PDFs o imágenes (máx. 5 MB cada uno).</span>
+                                    <span>Esta línea requiere documentación de respaldo. Adjunte PDFs o imágenes (máx. 5
+                                        MB cada uno).</span>
                                 </div>
                                 <div class="form-group">
                                     <label><i class="fas fa-paperclip"></i> Documentos Obligatorios</label>
-                                    <input type="file" id="loan-docs" multiple accept=".pdf,.jpg,.jpeg,.png" onchange="handleDocSelection(this)">
+                                    <input type="file" id="loan-docs" multiple accept=".pdf,.jpg,.jpeg,.png"
+                                        onchange="handleDocSelection(this)">
                                     <div id="form-file-list" style="margin-top:8px;"></div>
                                 </div>
                             </div>
@@ -205,7 +260,8 @@
                     <!-- Pre-cálculo Financiero -->
                     <div class="card" id="amortization-preview" style="display:none;">
                         <div class="card-title" style="margin-bottom:14px;">
-                            <i class="fas fa-calculator" style="color:var(--primary-light);margin-right:8px;"></i>Pre-cálculo Financiero
+                            <i class="fas fa-calculator"
+                                style="color:var(--primary-light);margin-right:8px;"></i>Pre-cálculo Financiero
                         </div>
                         <div class="divider" style="margin:0 0 14px;"></div>
                         <div class="amort-row">
@@ -214,7 +270,8 @@
                         </div>
                         <div class="amort-row" style="padding:12px 0;">
                             <span>Cuota Mensual Estimada</span>
-                            <span id="calc-fee" style="font-size:22px;color:var(--success);font-weight:800;">$0.00</span>
+                            <span id="calc-fee"
+                                style="font-size:22px;color:var(--success);font-weight:800;">$0.00</span>
                         </div>
                         <div class="amort-row">
                             <span>Total de Intereses</span>
@@ -334,4 +391,5 @@
 
     <script src="app.js"></script>
 </body>
+
 </html>

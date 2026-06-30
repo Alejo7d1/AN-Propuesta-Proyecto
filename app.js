@@ -1,6 +1,6 @@
 /**
  * ACEUCA Loans — Sistema Cooperativo de Créditos
- * Lógica de Negocio, Motor SPA y Sistema de Notificaciones (CU-07)
+ * Lógica de Negocio, Motor SPA, Login Simulado y Sistema de Notificaciones (CU-07)
  * ================================================================
  */
 
@@ -9,11 +9,11 @@
 // ================================================================
 const MOCK_DATA = {
     users: [
-        { id: "U01", name: "Asociado Ejemplo A", username: "asociado1", role: "Asociado",      status: "Activo", salary: 1500, riskScore: "Bajo" },
-        { id: "U02", name: "Contador General",    username: "contador",  role: "Contador",      status: "Activo", salary: 2000, riskScore: "Bajo" },
-        { id: "U03", name: "Rep. del Consejo",    username: "consejo",   role: "Consejo",       status: "Activo", salary: 2500, riskScore: "Bajo" },
-        { id: "U04", name: "Administrador Gral.", username: "admin",     role: "Administrador", status: "Activo", salary: 3000, riskScore: "Bajo" },
-        { id: "U05", name: "Asociado Ejemplo B",  username: "asociado2", role: "Asociado",      status: "Activo", salary: 800,  riskScore: "Alto" }
+        { id: "U01", name: "Asociado Ejemplo A", username: "asociado1", role: "Asociado", status: "Activo", salary: 1500, riskScore: "Bajo" },
+        { id: "U02", name: "Contador General", username: "contador", role: "Contador", status: "Activo", salary: 2000, riskScore: "Bajo" },
+        { id: "U03", name: "Rep. del Consejo", username: "consejo", role: "Consejo", status: "Activo", salary: 2500, riskScore: "Bajo" },
+        { id: "U04", name: "Administrador Gral.", username: "admin", role: "Administrador", status: "Activo", salary: 3000, riskScore: "Bajo" },
+        { id: "U05", name: "Asociado Ejemplo B", username: "asociado2", role: "Asociado", status: "Activo", salary: 800, riskScore: "Alto" }
     ],
     loans: [
         {
@@ -55,10 +55,10 @@ const MOCK_DATA = {
 // REGLAS DE NEGOCIO POR LÍNEA DE CRÉDITO
 // ================================================================
 const LOAN_RULES = {
-    "Micro préstamo":    { min: 800,  max: 1000,   maxTerm: 36,  rate: 10, requiresDocs: false },
-    "Préstamo por caja": { min: 100,  max: 20000,  maxTerm: 60,  rate: 18, requiresDocs: false },
-    "Traslado de deuda": { min: 500,  max: 50000,  maxTerm: 72,  rate: 12, requiresDocs: true  },
-    "Préstamo personal": { min: 500,  max: 100000, maxTerm: 120, rate: 15, requiresDocs: true, salaryLimit: 0.20 }
+    "Micro préstamo": { min: 800, max: 1000, maxTerm: 36, rate: 10, requiresDocs: false },
+    "Préstamo por caja": { min: 100, max: 20000, maxTerm: 60, rate: 18, requiresDocs: false },
+    "Traslado de deuda": { min: 500, max: 50000, maxTerm: 72, rate: 12, requiresDocs: true },
+    "Préstamo personal": { min: 500, max: 100000, maxTerm: 120, rate: 15, requiresDocs: true, salaryLimit: 0.20 }
 };
 
 // ================================================================
@@ -66,24 +66,26 @@ const LOAN_RULES = {
 // ================================================================
 let state = {
     currentUser: null,
-    activeRole:  null,
-    activeView:  "dashboard",
-    loans:         [...MOCK_DATA.loans],
+    activeRole: null,
+    activeView: "dashboard",
+    loans: [...MOCK_DATA.loans],
     notifications: [...MOCK_DATA.notifications],
-    logs:          [...MOCK_DATA.logs],
-    users:         [...MOCK_DATA.users],
-    tempFiles:     [],
+    logs: [...MOCK_DATA.logs],
+    users: [...MOCK_DATA.users],
+    tempFiles: [],
     notifPanelOpen: false
 };
 
 // ================================================================
 // PERSISTENCIA: LocalStorage
+// (Nota: la sesión de login NUNCA se persiste; cada carga de página
+// exige pasar de nuevo por la pantalla de acceso simulada.)
 // ================================================================
 function saveState() {
     try {
         const s = { ...state, tempFiles: [], notifPanelOpen: false };
         localStorage.setItem("aceuca_v2_state", JSON.stringify(s));
-    } catch(e) { /* quota exceeded */ }
+    } catch (e) { /* quota exceeded */ }
 }
 
 function loadState() {
@@ -93,7 +95,7 @@ function loadState() {
             const parsed = JSON.parse(saved);
             state = { ...state, ...parsed, tempFiles: [], notifPanelOpen: false };
         }
-    } catch(e) { console.warn("Estado local inválido, iniciando fresco."); }
+    } catch (e) { console.warn("Estado local inválido, iniciando fresco."); }
 }
 
 // ================================================================
@@ -120,6 +122,104 @@ function addAuditLog(action, type = "Financiero") {
 }
 
 // ================================================================
+// LOGIN SIMULADO (Pantalla de acceso al entrar a la página)
+// ================================================================
+
+/**
+ * Muestra el overlay de login y prepara los accesos rápidos
+ * con los usuarios demo definidos en MOCK_DATA.users.
+ */
+function renderLoginScreen() {
+    const overlay = document.getElementById("login-overlay");
+    if (!overlay) return;
+
+    overlay.classList.add("active");
+    document.body.classList.add("login-locked");
+
+    const userField = document.getElementById("login-username");
+    const passField = document.getElementById("login-password");
+    const errorEl = document.getElementById("login-error");
+    if (userField) userField.value = "";
+    if (passField) passField.value = "";
+    if (errorEl) errorEl.style.display = "none";
+
+    const quickList = document.getElementById("login-quick-list");
+    if (quickList) {
+        quickList.innerHTML = state.users.map(u => `
+            <button type="button" class="login-quick-btn" onclick="fillLoginField('${u.username}')" ${u.status !== 'Activo' ? 'disabled' : ''}>
+                <i class="fas fa-user-circle"></i>
+                <span>${u.username}</span>
+                <span class="login-quick-role">${u.role}</span>
+            </button>`).join("");
+    }
+
+    if (userField) userField.focus();
+}
+
+/** Oculta el overlay de login una vez autenticado */
+function hideLoginScreen() {
+    document.getElementById("login-overlay")?.classList.remove("active");
+    document.body.classList.remove("login-locked");
+}
+
+/** Autocompleta el usuario al hacer clic en un acceso rápido demo */
+function fillLoginField(username) {
+    const userInput = document.getElementById("login-username");
+    if (userInput) userInput.value = username;
+    document.getElementById("login-password")?.focus();
+}
+
+/**
+ * Autenticación simulada: valida que el usuario exista y esté Activo.
+ * La contraseña no se verifica contra un valor real (es un prototipo),
+ * solo se exige que el campo no esté vacío.
+ */
+function attemptLogin(event) {
+    if (event) event.preventDefault();
+
+    const username = (document.getElementById("login-username")?.value || "").trim().toLowerCase();
+    const password = document.getElementById("login-password")?.value || "";
+    const errorEl = document.getElementById("login-error");
+
+    const showError = (msg) => {
+        if (errorEl) {
+            errorEl.textContent = msg;
+            errorEl.style.display = "flex";
+        }
+    };
+
+    if (!username || !password) {
+        showError("Ingrese usuario y contraseña para continuar.");
+        return;
+    }
+
+    const user = state.users.find(u => u.username.toLowerCase() === username);
+
+    if (!user) {
+        showError("Usuario no encontrado. Verifique el identificador.");
+        return;
+    }
+    if (user.status !== "Activo") {
+        showError("Este usuario está inactivo. Contacte al Administrador del sistema.");
+        return;
+    }
+
+    hideLoginScreen();
+    setRole(user.role);
+    showToast(`Bienvenido, ${user.name.split(" ")[0]}. Sesión iniciada como ${user.role}.`, "success");
+}
+
+/** Cierra la sesión actual y regresa a la pantalla de login */
+function logout() {
+    closeNotifPanel();
+    addAuditLog(`Cierre de sesión de ${state.currentUser ? state.currentUser.name : 'usuario'}.`, "Seguridad");
+    state.currentUser = null;
+    state.activeRole = null;
+    saveState();
+    renderLoginScreen();
+}
+
+// ================================================================
 // SISTEMA DE NOTIFICACIONES (CU-07)
 // ================================================================
 
@@ -131,9 +231,9 @@ function addAuditLog(action, type = "Financiero") {
 function addNotification(text, targetRole, type = "info") {
     const notif = {
         id: `N-${Date.now().toString().slice(-6)}`,
-        role:   targetRole,
+        role: targetRole,
         text,
-        date:   new Date().toLocaleDateString("es-CR", { day:"2-digit", month:"short", year:"numeric" }),
+        date: new Date().toLocaleDateString("es-CR", { day: "2-digit", month: "short", year: "numeric" }),
         unread: true,
         type    // "info" | "success" | "warning" | "danger"
     };
@@ -160,7 +260,7 @@ function updateNotificationBadge() {
 /** Abre/cierra el panel de notificaciones */
 function toggleNotifPanel() {
     state.notifPanelOpen = !state.notifPanelOpen;
-    const panel   = document.getElementById("notif-panel");
+    const panel = document.getElementById("notif-panel");
     const overlay = document.getElementById("notif-overlay");
     if (!panel) return;
 
@@ -197,10 +297,10 @@ function renderNotifPanel() {
     }
 
     const iconMap = {
-        info:    { icon: "fa-info-circle",    cls: "info"    },
-        success: { icon: "fa-check-circle",   cls: "success" },
+        info: { icon: "fa-info-circle", cls: "info" },
+        success: { icon: "fa-check-circle", cls: "success" },
         warning: { icon: "fa-exclamation-circle", cls: "warning" },
-        danger:  { icon: "fa-times-circle",   cls: "danger"  }
+        danger: { icon: "fa-times-circle", cls: "danger" }
     };
 
     body.innerHTML = myNotifs.map(n => {
@@ -248,15 +348,15 @@ function showToast(msg, type = "info") {
 
     const colorMap = {
         success: "linear-gradient(135deg, #10b981, #059669)",
-        danger:  "linear-gradient(135deg, #ef4444, #dc2626)",
+        danger: "linear-gradient(135deg, #ef4444, #dc2626)",
         warning: "linear-gradient(135deg, #f59e0b, #d97706)",
-        info:    "linear-gradient(135deg, #3b82f6, #2563eb)"
+        info: "linear-gradient(135deg, #3b82f6, #2563eb)"
     };
     const iconMap = {
         success: "fa-check-circle",
-        danger:  "fa-times-circle",
+        danger: "fa-times-circle",
         warning: "fa-exclamation-circle",
-        info:    "fa-info-circle"
+        info: "fa-info-circle"
     };
 
     const toast = document.createElement("div");
@@ -305,8 +405,8 @@ function navigateTo(viewName) {
 // SELECTOR DE ROL (Entorno Sandbox)
 // ================================================================
 function setRole(roleName) {
-    state.activeRole   = roleName;
-    state.currentUser  = state.users.find(u => u.role === roleName) || null;
+    state.activeRole = roleName;
+    state.currentUser = state.users.find(u => u.role === roleName) || null;
     closeNotifPanel();
     saveState();
 
@@ -323,17 +423,17 @@ function setRole(roleName) {
     // Actualizar header con datos de usuario
     if (state.currentUser) {
         const initials = state.currentUser.name.split(" ").map(w => w[0]).join("").slice(0, 2).toUpperCase();
-        document.getElementById("avatar-box").textContent     = initials;
-        document.querySelector(".user-name").textContent      = state.currentUser.name;
-        document.querySelector(".user-role").textContent      = state.currentUser.role;
+        document.getElementById("avatar-box").textContent = initials;
+        document.querySelector(".user-name").textContent = state.currentUser.name;
+        document.querySelector(".user-role").textContent = state.currentUser.role;
     }
 
     updateNotificationBadge();
 
     // Redirigir inteligentemente según el rol
     const invalidViews = {
-        "Contador":      ["loan-apply", "payments-asociado"],
-        "Consejo":       ["loan-apply", "payments-asociado", "evaluate-loans"],
+        "Contador": ["loan-apply", "payments-asociado"],
+        "Consejo": ["loan-apply", "payments-asociado", "evaluate-loans"],
         "Administrador": ["loan-apply", "evaluate-loans", "consejo-decisions", "payments-asociado"]
     };
 
@@ -350,11 +450,11 @@ function setRole(roleName) {
 // ================================================================
 function getStatusBadgeClass(status) {
     const map = {
-        "Pendiente":            "badge-pending",
-        "Evaluado por Contador":"badge-review",
-        "Aprobada":             "badge-approved",
-        "Rechazada":            "badge-rejected",
-        "Desembolsada":         "badge-disbursed"
+        "Pendiente": "badge-pending",
+        "Evaluado por Contador": "badge-review",
+        "Aprobada": "badge-approved",
+        "Rechazada": "badge-rejected",
+        "Desembolsada": "badge-disbursed"
     };
     return map[status] || "";
 }
@@ -364,15 +464,15 @@ function getStatusBadgeClass(status) {
 // ================================================================
 function renderViewContent(view, container) {
     switch (view) {
-        case "dashboard":        renderDashboard(container);       break;
-        case "loan-apply":       initLoanForm();                   break;
-        case "evaluate-loans":   renderEvaluateLoans(container);   break;
-        case "consejo-decisions":renderConsejoDecisions(container);break;
-        case "payments-asociado":renderPaymentsAsociado(container);break;
-        case "payments-admin":   renderPaymentsAdmin(container);   break;
-        case "reports":          renderReports(container);         break;
-        case "users-admin":      renderUsersAdmin();               break;
-        case "audit-logs":       renderAuditLogs();                break;
+        case "dashboard": renderDashboard(container); break;
+        case "loan-apply": initLoanForm(); break;
+        case "evaluate-loans": renderEvaluateLoans(container); break;
+        case "consejo-decisions": renderConsejoDecisions(container); break;
+        case "payments-asociado": renderPaymentsAsociado(container); break;
+        case "payments-admin": renderPaymentsAdmin(container); break;
+        case "reports": renderReports(container); break;
+        case "users-admin": renderUsersAdmin(); break;
+        case "audit-logs": renderAuditLogs(); break;
     }
 }
 
@@ -395,12 +495,12 @@ function renderDashboard(container) {
 }
 
 function renderDashboardAsociado(container) {
-    const myLoans  = state.loans.filter(l => l.associate === state.currentUser?.name);
-    const active   = myLoans.filter(l => l.status === "Desembolsada");
-    const pending  = myLoans.filter(l => l.status === "Pendiente");
-    const debt     = active.reduce((s, l) => s + (parseFloat(l.balance) || 0), 0).toFixed(2);
-    const nextFee  = active.length ? active[0].monthlyFee : 0;
-    const unread   = state.notifications.filter(n => n.role === "Asociado" && n.unread).length;
+    const myLoans = state.loans.filter(l => l.associate === state.currentUser?.name);
+    const active = myLoans.filter(l => l.status === "Desembolsada");
+    const pending = myLoans.filter(l => l.status === "Pendiente");
+    const debt = active.reduce((s, l) => s + (parseFloat(l.balance) || 0), 0).toFixed(2);
+    const nextFee = active.length ? active[0].monthlyFee : 0;
+    const unread = state.notifications.filter(n => n.role === "Asociado" && n.unread).length;
 
     container.innerHTML = `
         <div class="page-header">
@@ -463,8 +563,8 @@ function renderDashboardAsociado(container) {
                     </thead>
                     <tbody>
                         ${myLoans.length === 0
-                            ? `<tr><td colspan="7"><div class="empty-state"><i class="fas fa-folder-open"></i><p>No registras solicitudes de crédito aún.</p></div></td></tr>`
-                            : myLoans.map(l => `
+            ? `<tr><td colspan="7"><div class="empty-state"><i class="fas fa-folder-open"></i><p>No registras solicitudes de crédito aún.</p></div></td></tr>`
+            : myLoans.map(l => `
                             <tr>
                                 <td><b>${l.id}</b></td>
                                 <td>${l.type}</td>
@@ -474,23 +574,23 @@ function renderDashboardAsociado(container) {
                                 <td><span class="badge ${getStatusBadgeClass(l.status)}">${l.status}</span></td>
                                 <td>
                                     ${l.status === 'Rechazada' && !l.hasAppeal
-                                        ? `<button class="btn btn-danger btn-sm" onclick="executeAppeal('${l.id}')"><i class="fas fa-balance-scale"></i> Apelar</button>`
-                                        : ''}
+                    ? `<button class="btn btn-danger btn-sm" onclick="executeAppeal('${l.id}')"><i class="fas fa-balance-scale"></i> Apelar</button>`
+                    : ''}
                                     ${l.status === 'Rechazada' && l.hasAppeal
-                                        ? `<span class="badge badge-review"><i class="fas fa-hourglass-half"></i> Apelación enviada</span>`
-                                        : ''}
+                    ? `<span class="badge badge-review"><i class="fas fa-hourglass-half"></i> Apelación enviada</span>`
+                    : ''}
                                     ${l.status === 'Desembolsada'
-                                        ? `<button class="btn btn-success btn-sm" onclick="navigateTo('payments-asociado')"><i class="fas fa-wallet"></i> Pagar</button>`
-                                        : ''}
+                    ? `<button class="btn btn-success btn-sm" onclick="navigateTo('payments-asociado')"><i class="fas fa-wallet"></i> Pagar</button>`
+                    : ''}
                                     ${l.status === 'Pendiente'
-                                        ? `<span class="text-muted" style="font-size:12px;"><i class="fas fa-clock"></i> En análisis</span>`
-                                        : ''}
+                    ? `<span class="text-muted" style="font-size:12px;"><i class="fas fa-clock"></i> En análisis</span>`
+                    : ''}
                                     ${l.status === 'Evaluado por Contador'
-                                        ? `<span class="badge badge-review"><i class="fas fa-search"></i> En Consejo</span>`
-                                        : ''}
+                    ? `<span class="badge badge-review"><i class="fas fa-search"></i> En Consejo</span>`
+                    : ''}
                                 </td>
                             </tr>`).join("")
-                        }
+        }
                     </tbody>
                 </table>
             </div>
@@ -498,10 +598,10 @@ function renderDashboardAsociado(container) {
 }
 
 function renderDashboardContador(container) {
-    const pending   = state.loans.filter(l => l.status === "Pendiente").length;
+    const pending = state.loans.filter(l => l.status === "Pendiente").length;
     const evaluated = state.loans.filter(l => l.status === "Evaluado por Contador").length;
-    const total     = state.loans.length;
-    const unread    = state.notifications.filter(n => n.role === "Contador" && n.unread).length;
+    const total = state.loans.length;
+    const unread = state.notifications.filter(n => n.role === "Contador" && n.unread).length;
 
     container.innerHTML = `
         <div class="page-header">
@@ -548,7 +648,7 @@ function renderDashboardContador(container) {
 function renderDashboardConsejo(container) {
     const toReview = state.loans.filter(l => l.status === "Evaluado por Contador" || l.hasAppeal).length;
     const approved = state.loans.filter(l => l.status === "Desembolsada").length;
-    const unread   = state.notifications.filter(n => n.role === "Consejo" && n.unread).length;
+    const unread = state.notifications.filter(n => n.role === "Consejo" && n.unread).length;
 
     container.innerHTML = `
         <div class="page-header">
@@ -586,7 +686,7 @@ function renderDashboardConsejo(container) {
 function renderDashboardAdmin(container) {
     const totalUsers = state.users.length;
     const totalLoans = state.loans.length;
-    const totalLogs  = state.logs.length;
+    const totalLogs = state.logs.length;
 
     container.innerHTML = `
         <div class="page-header">
@@ -630,7 +730,7 @@ function initLoanForm() {
     if (!typeSelect) return;
     typeSelect.onchange = handleLoanTypeChange;
     document.getElementById("loan-amount").oninput = updateAmortizationPreview;
-    document.getElementById("loan-term").oninput   = updateAmortizationPreview;
+    document.getElementById("loan-term").oninput = updateAmortizationPreview;
 
     if (state.currentUser) {
         const salaryField = document.getElementById("loan-salary");
@@ -640,44 +740,44 @@ function initLoanForm() {
 }
 
 function handleLoanTypeChange() {
-    const type  = document.getElementById("loan-type")?.value;
+    const type = document.getElementById("loan-type")?.value;
     const rules = LOAN_RULES[type];
     if (!rules) return;
 
-    const amountHelp  = document.getElementById("amount-help");
-    const termHelp    = document.getElementById("term-help");
+    const amountHelp = document.getElementById("amount-help");
+    const termHelp = document.getElementById("term-help");
     const salarySection = document.getElementById("salary-section");
-    const docsSection   = document.getElementById("docs-upload-section");
-    const amortPreview  = document.getElementById("amortization-preview");
+    const docsSection = document.getElementById("docs-upload-section");
+    const amortPreview = document.getElementById("amortization-preview");
 
-    if (amountHelp)  amountHelp.textContent  = `Mín: $${rules.min.toLocaleString()} — Máx: $${rules.max.toLocaleString()}`;
-    if (termHelp)    termHelp.textContent    = `Plazo máximo permitido: ${rules.maxTerm} meses`;
-    if (salarySection) salarySection.style.display  = rules.salaryLimit ? "block" : "none";
-    if (docsSection)   docsSection.style.display    = rules.requiresDocs ? "block" : "none";
-    if (amortPreview)  amortPreview.style.display   = "block";
+    if (amountHelp) amountHelp.textContent = `Mín: $${rules.min.toLocaleString()} — Máx: $${rules.max.toLocaleString()}`;
+    if (termHelp) termHelp.textContent = `Plazo máximo permitido: ${rules.maxTerm} meses`;
+    if (salarySection) salarySection.style.display = rules.salaryLimit ? "block" : "none";
+    if (docsSection) docsSection.style.display = rules.requiresDocs ? "block" : "none";
+    if (amortPreview) amortPreview.style.display = "block";
 
     updateAmortizationPreview();
 }
 
 function updateAmortizationPreview() {
-    const type      = document.getElementById("loan-type")?.value;
+    const type = document.getElementById("loan-type")?.value;
     const principal = parseFloat(document.getElementById("loan-amount")?.value) || 0;
-    const months    = parseInt(document.getElementById("loan-term")?.value) || 0;
-    const rules     = LOAN_RULES[type];
+    const months = parseInt(document.getElementById("loan-term")?.value) || 0;
+    const rules = LOAN_RULES[type];
     if (!rules || !months) return;
 
-    const fee          = parseFloat(calculateAmortization(principal, rules.rate, months));
+    const fee = parseFloat(calculateAmortization(principal, rules.rate, months));
     const totalPayable = (fee * months).toFixed(2);
-    const totalInterest= Math.max(0, totalPayable - principal).toFixed(2);
+    const totalInterest = Math.max(0, totalPayable - principal).toFixed(2);
 
-    const rateEl    = document.getElementById("rate-preview");
-    const feeEl     = document.getElementById("calc-fee");
-    const intEl     = document.getElementById("calc-interest");
-    const totalEl   = document.getElementById("calc-total");
+    const rateEl = document.getElementById("rate-preview");
+    const feeEl = document.getElementById("calc-fee");
+    const intEl = document.getElementById("calc-interest");
+    const totalEl = document.getElementById("calc-total");
 
-    if (rateEl)  rateEl.textContent  = `${rules.rate}% Anual`;
-    if (feeEl)   feeEl.textContent   = `$${fee.toFixed(2)}`;
-    if (intEl)   intEl.textContent   = `$${totalInterest}`;
+    if (rateEl) rateEl.textContent = `${rules.rate}% Anual`;
+    if (feeEl) feeEl.textContent = `$${fee.toFixed(2)}`;
+    if (intEl) intEl.textContent = `$${totalInterest}`;
     if (totalEl) totalEl.textContent = `$${totalPayable}`;
 }
 
@@ -717,10 +817,10 @@ function removeTempFile(index) {
 }
 
 function handleLoanSubmit() {
-    const type   = document.getElementById("loan-type")?.value;
+    const type = document.getElementById("loan-type")?.value;
     const amount = parseFloat(document.getElementById("loan-amount")?.value);
-    const term   = parseInt(document.getElementById("loan-term")?.value);
-    const rules  = LOAN_RULES[type];
+    const term = parseInt(document.getElementById("loan-term")?.value);
+    const rules = LOAN_RULES[type];
 
     if (!rules) return;
 
@@ -738,19 +838,19 @@ function handleLoanSubmit() {
     }
 
     const newLoan = {
-        id:           `PRE-${Date.now().toString().slice(-4)}`,
+        id: `PRE-${Date.now().toString().slice(-4)}`,
         type, amount, term,
-        rate:         rules.rate,
-        associate:    state.currentUser.name,
-        status:       "Pendiente",
-        date:         new Date().toISOString().split("T")[0],
-        balance:      amount,
-        monthlyFee:   parseFloat(calculateAmortization(amount, rules.rate, term)),
-        payments:     [],
-        riskStatus:   "Pendiente",
+        rate: rules.rate,
+        associate: state.currentUser.name,
+        status: "Pendiente",
+        date: new Date().toISOString().split("T")[0],
+        balance: amount,
+        monthlyFee: parseFloat(calculateAmortization(amount, rules.rate, term)),
+        payments: [],
+        riskStatus: "Pendiente",
         technicalReport: "",
         freezeMonths: 0,
-        hasAppeal:    false
+        hasAppeal: false
     };
 
     state.loans.push(newLoan);
@@ -830,11 +930,11 @@ function renderEvaluateLoans(container) {
 }
 
 function submitEvaluation(loanId, isApproved) {
-    const riskEl   = document.getElementById(`risk-${loanId}`);
+    const riskEl = document.getElementById(`risk-${loanId}`);
     const reportEl = document.getElementById(`report-${loanId}`);
     if (!riskEl || !reportEl) return;
 
-    const risk   = riskEl.value;
+    const risk = riskEl.value;
     const report = reportEl.value.trim();
 
     if (!report) {
@@ -845,9 +945,9 @@ function submitEvaluation(loanId, isApproved) {
     const loan = state.loans.find(l => l.id === loanId);
     if (!loan) return;
 
-    loan.riskStatus     = risk;
+    loan.riskStatus = risk;
     loan.technicalReport = report;
-    loan.status         = isApproved ? "Evaluado por Contador" : "Rechazada";
+    loan.status = isApproved ? "Evaluado por Contador" : "Rechazada";
 
     addAuditLog(
         `Dictamen ${isApproved ? "favorable" : "desfavorable"} emitido para ${loanId}. Riesgo: ${risk}.`,
@@ -935,14 +1035,14 @@ function renderConsejoDecisions(container) {
 
 function submitConsejoVerdict(loanId, approve) {
     const freezeEl = document.getElementById(`freeze-${loanId}`);
-    const freeze   = freezeEl ? parseInt(freezeEl.value) || 0 : 0;
-    const loan     = state.loans.find(l => l.id === loanId);
+    const freeze = freezeEl ? parseInt(freezeEl.value) || 0 : 0;
+    const loan = state.loans.find(l => l.id === loanId);
     if (!loan) return;
 
     if (approve) {
-        loan.status      = "Desembolsada";
-        loan.freezeMonths= freeze;
-        loan.hasAppeal   = false;
+        loan.status = "Desembolsada";
+        loan.freezeMonths = freeze;
+        loan.hasAppeal = false;
         addAuditLog(`Consejo ratificó préstamo ${loanId}. Desembolsado con ${freeze} mes(es) de gracia.`, "Financiero");
         addNotification(
             `¡Su crédito ${loanId} fue aprobado y desembolsado por el Consejo de Administración! ${freeze > 0 ? `Período de gracia: ${freeze} mes(es).` : ''}`,
@@ -950,7 +1050,7 @@ function submitConsejoVerdict(loanId, approve) {
         );
         showToast(`Crédito ${loanId} desembolsado exitosamente.`, "success");
     } else {
-        loan.status    = "Rechazada";
+        loan.status = "Rechazada";
         loan.hasAppeal = false;
         addAuditLog(`Consejo denegó definitivamente el crédito ${loanId}.`, "Seguridad");
         addNotification(
@@ -987,7 +1087,7 @@ function renderPaymentsAsociado(container) {
                     <strong>${l.id} <span style="color:var(--text-muted);font-weight:400;">· ${l.type}</span></strong>
                     <p>Saldo actual: <strong>$${parseFloat(l.balance).toFixed(2)}</strong> &nbsp;|&nbsp; Cuota del mes: <strong>$${l.monthlyFee}</strong></p>
                     ${l.freezeMonths > 0 ? `<p style="margin-top:6px;"><span class="badge badge-review"><i class="fas fa-pause-circle"></i> Período de gracia: ${l.freezeMonths} mes(es) restantes</span></p>` : ''}
-                    ${l.payments.length > 0 ? `<p style="margin-top:6px;font-size:12px;color:var(--text-muted);">Último pago: ${l.payments[l.payments.length-1].date} — $${l.payments[l.payments.length-1].amount}</p>` : ''}
+                    ${l.payments.length > 0 ? `<p style="margin-top:6px;font-size:12px;color:var(--text-muted);">Último pago: ${l.payments[l.payments.length - 1].date} — $${l.payments[l.payments.length - 1].amount}</p>` : ''}
                 </div>
                 <button class="btn btn-primary" onclick="executeLoanPayment('${l.id}')">
                     <i class="fas fa-credit-card"></i> Pagar $${l.monthlyFee}
@@ -1029,17 +1129,17 @@ function executeLoanPayment(loanId) {
         return;
     }
 
-    const paid     = parseFloat(loan.monthlyFee);
-    loan.balance   = Math.max(0, parseFloat(loan.balance) - paid);
-    const payId    = `PAG-${Date.now().toString().slice(-4)}`;
+    const paid = parseFloat(loan.monthlyFee);
+    loan.balance = Math.max(0, parseFloat(loan.balance) - paid);
+    const payId = `PAG-${Date.now().toString().slice(-4)}`;
 
     loan.payments.push({
-        id:      payId,
-        date:    new Date().toLocaleDateString("es-CR"),
-        amount:  paid,
-        type:    "Pago Web Pasarela",
+        id: payId,
+        date: new Date().toLocaleDateString("es-CR"),
+        amount: paid,
+        type: "Pago Web Pasarela",
         balance: loan.balance,
-        status:  "Hacienda OK"
+        status: "Hacienda OK"
     });
 
     addAuditLog(`Pago vía pasarela para ${loanId}. Recibo: ${payId}. Nuevo saldo: $${loan.balance.toFixed(2)}`, "Financiero");
@@ -1105,9 +1205,9 @@ function registerManualPayment(loanId) {
     if (!loan) return;
     if (loan.balance <= 0) { showToast("Crédito ya cancelado.", "success"); return; }
 
-    const paid     = parseFloat(loan.monthlyFee);
-    loan.balance   = Math.max(0, parseFloat(loan.balance) - paid);
-    const payId    = `PAG-M${Date.now().toString().slice(-4)}`;
+    const paid = parseFloat(loan.monthlyFee);
+    loan.balance = Math.max(0, parseFloat(loan.balance) - paid);
+    const payId = `PAG-M${Date.now().toString().slice(-4)}`;
 
     loan.payments.push({ id: payId, date: new Date().toLocaleDateString("es-CR"), amount: paid, type: "Planilla/Ventanilla", balance: loan.balance, status: "Hacienda OK" });
     addAuditLog(`Pago manual registrado por Contador para ${loanId}. Recibo: ${payId}. Saldo: $${loan.balance.toFixed(2)}`, "Financiero");
@@ -1124,12 +1224,12 @@ function renderReports(container) {
     if (!container) container = document.getElementById("view-reports");
     if (!container) return;
 
-    const total      = state.loans.length;
-    const disbursed  = state.loans.filter(l => l.status === "Desembolsada").length;
-    const pending    = state.loans.filter(l => l.status === "Pendiente").length;
-    const rejected   = state.loans.filter(l => l.status === "Rechazada").length;
-    const totalDebt  = state.loans.filter(l => l.status === "Desembolsada").reduce((s, l) => s + parseFloat(l.balance), 0).toFixed(2);
-    const totalDisb  = state.loans.filter(l => l.status === "Desembolsada").reduce((s, l) => s + l.amount, 0).toFixed(2);
+    const total = state.loans.length;
+    const disbursed = state.loans.filter(l => l.status === "Desembolsada").length;
+    const pending = state.loans.filter(l => l.status === "Pendiente").length;
+    const rejected = state.loans.filter(l => l.status === "Rechazada").length;
+    const totalDebt = state.loans.filter(l => l.status === "Desembolsada").reduce((s, l) => s + parseFloat(l.balance), 0).toFixed(2);
+    const totalDisb = state.loans.filter(l => l.status === "Desembolsada").reduce((s, l) => s + l.amount, 0).toFixed(2);
 
     container.innerHTML = `
         <div class="page-header">
@@ -1169,14 +1269,14 @@ function renderReports(container) {
                 <div class="card-title" style="margin-bottom:14px;">Resumen de Cartera</div>
                 <div class="loan-detail-row"><span>Capital Total Desembolsado</span><span>$${parseFloat(totalDisb).toLocaleString()}</span></div>
                 <div class="loan-detail-row"><span>Saldo Pendiente de Recuperación</span><span>$${parseFloat(totalDebt).toLocaleString()}</span></div>
-                <div class="loan-detail-row"><span>Tasa Promedio de Cartera</span><span>${(state.loans.reduce((s,l)=>s+l.rate,0)/Math.max(state.loans.length,1)).toFixed(1)}% anual</span></div>
+                <div class="loan-detail-row"><span>Tasa Promedio de Cartera</span><span>${(state.loans.reduce((s, l) => s + l.rate, 0) / Math.max(state.loans.length, 1)).toFixed(1)}% anual</span></div>
             </div>
             <div class="card">
                 <div class="card-title" style="margin-bottom:14px;">Distribución por Estado</div>
-                ${["Pendiente","Evaluado por Contador","Desembolsada","Rechazada"].map(status => {
-                    const count = state.loans.filter(l => l.status === status).length;
-                    const pct   = total > 0 ? Math.round(count/total*100) : 0;
-                    return `
+                ${["Pendiente", "Evaluado por Contador", "Desembolsada", "Rechazada"].map(status => {
+        const count = state.loans.filter(l => l.status === status).length;
+        const pct = total > 0 ? Math.round(count / total * 100) : 0;
+        return `
                     <div style="margin-bottom:10px;">
                         <div style="display:flex;justify-content:space-between;font-size:12px;margin-bottom:3px;">
                             <span><span class="badge ${getStatusBadgeClass(status)}">${status}</span></span>
@@ -1186,7 +1286,7 @@ function renderReports(container) {
                             <div style="background:var(--primary-light);height:100%;border-radius:4px;width:${pct}%;transition:width 0.5s;"></div>
                         </div>
                     </div>`;
-                }).join("")}
+    }).join("")}
             </div>
         </div>
         <div class="card">
@@ -1257,22 +1357,22 @@ function renderUsersAdmin() {
         </tr>`).join("");
 }
 
-function showAddUserForm()  { document.getElementById("add-user-form-card").style.display = "block"; }
-function hideAddUserForm()  { document.getElementById("add-user-form-card").style.display = "none"; }
+function showAddUserForm() { document.getElementById("add-user-form-card").style.display = "block"; }
+function hideAddUserForm() { document.getElementById("add-user-form-card").style.display = "none"; }
 
 function saveNewUser() {
-    const name     = document.getElementById("new-user-name")?.value.trim();
+    const name = document.getElementById("new-user-name")?.value.trim();
     const username = document.getElementById("new-user-username")?.value.trim();
-    const role     = document.getElementById("new-user-role")?.value;
-    const salary   = parseFloat(document.getElementById("new-user-salary")?.value) || 0;
+    const role = document.getElementById("new-user-role")?.value;
+    const salary = parseFloat(document.getElementById("new-user-salary")?.value) || 0;
 
     if (!name || !username) { showToast("Nombre e identificador son obligatorios.", "danger"); return; }
     if (state.users.some(u => u.username === username)) { showToast("Ese identificador ya está en uso.", "danger"); return; }
 
     const newUser = {
-        id:        `U${(state.users.length + 1).toString().padStart(2, "0")}`,
+        id: `U${(state.users.length + 1).toString().padStart(2, "0")}`,
         name, username, role, salary,
-        status:    "Activo",
+        status: "Activo",
         riskScore: "Bajo"
     };
     state.users.push(newUser);
@@ -1308,9 +1408,9 @@ function renderAuditLogs() {
 
     container.innerHTML = state.logs.map(l => {
         const typeMap = {
-            "Seguridad":  { cls: "security",  icon: "fa-shield-halved",    color: "var(--danger)"  },
-            "Financiero": { cls: "financial",  icon: "fa-coins",            color: "var(--success)" },
-            "Sistema":    { cls: "system",     icon: "fa-microchip",        color: "var(--warning)" }
+            "Seguridad": { cls: "security", icon: "fa-shield-halved", color: "var(--danger)" },
+            "Financiero": { cls: "financial", icon: "fa-coins", color: "var(--success)" },
+            "Sistema": { cls: "system", icon: "fa-microchip", color: "var(--warning)" }
         };
         const t = typeMap[l.type] || typeMap["Sistema"];
         return `
@@ -1340,8 +1440,11 @@ function simulateMoraTrigger() {
 
 // ================================================================
 // INICIALIZACIÓN
+// Ahora la app SIEMPRE arranca mostrando la pantalla de login.
+// El rol/usuario solo se activa tras una autenticación (simulada)
+// exitosa mediante attemptLogin().
 // ================================================================
 window.addEventListener("DOMContentLoaded", () => {
     loadState();
-    setRole(state.activeRole || "Asociado");
+    renderLoginScreen();
 });
